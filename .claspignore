@@ -1,0 +1,18 @@
+# Ignore everything by default
+**/**
+
+# Include what we actually deploy
+!appsscript.json
+!dist/**
+
+# Keep build artifacts only (not sources / local tooling)
+node_modules/**
+.git/**
+src/**
+Code.js
+README.md
+package.json
+package-lock.json
+tsconfig.json
+.vscode/**
+.DS_Store

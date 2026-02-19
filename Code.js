@@ -1,4 +1,12 @@
 /*************************************************
+ * NOTE
+ * Ce fichier est désormais remplacé par la version TypeScript dans `src/`.
+ * La version déployée sur Apps Script est compilée dans `dist/` puis poussée via clasp.
+ *
+ * ⚠️ NE PLUS MODIFIER CE FICHIER: il sera écrasé par `clasp pull` / `clasp push`.
+ *************************************************/
+
+/*************************************************
  * FRANCE TRAVAIL – MVP TRAVAILLEUR SOCIAL < 24h
  * - Secrets en Script Properties (auto-init)
  * - Date format dd/MM/yyyy HH:mm

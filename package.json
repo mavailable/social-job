@@ -1,0 +1,21 @@
+{
+  "name": "social-job-france-travail",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p .",
+    "push": "npm run build && clasp push",
+    "pull": "clasp pull",
+    "open": "clasp open",
+    "login": "clasp login",
+    "create": "clasp create --type standalone",
+    "watch": "tsc -w -p .",
+    "push:watch": "tsc -w -p . --preserveWatchOutput"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.5.0",
+    "@types/google-apps-script": "^1.0.93",
+    "typescript": "^5.4.0"
+  }
+}
