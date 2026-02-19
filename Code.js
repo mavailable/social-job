@@ -8,6 +8,58 @@
  *************************************************/
 
 /***************
+ * SCHEMA COLONNES (source de vérité)
+ * - Centralise l'ordre des colonnes, leurs en-têtes et leurs indices (1-based)
+ * - Évite les "magic numbers" lors des getRange()
+ ***************/
+const FT_SHEET_COLUMNS = [
+  { key: 'status', header: 'Status' },
+  { key: 'notes', header: 'Notes' },
+  { key: 'dateCreation', header: 'dateCreation' },
+  { key: 'intitule', header: 'intitule' },
+  { key: 'description', header: 'description' },
+  { key: 'entreprise_nom', header: 'entreprise_nom' },
+  { key: 'contact_nom', header: 'contact_nom' },
+  { key: 'entreprise_description', header: 'entreprise_description' },
+  { key: 'lieu_libelle', header: 'lieu_libelle' },
+  { key: 'codePostal', header: 'codePostal' },
+  { key: 'typeContrat', header: 'typeContrat' },
+  { key: 'typeContratLibelle', header: 'typeContratLibelle' },
+  { key: 'natureContrat', header: 'natureContrat' },
+  { key: 'dureeTravailLibelle', header: 'dureeTravailLibelle' },
+  { key: 'salaire_libelle', header: 'salaire_libelle' },
+  { key: 'experienceLibelle', header: 'experienceLibelle' },
+  { key: 'qualificationLibelle', header: 'qualificationLibelle' },
+  { key: 'secteurActiviteLibelle', header: 'secteurActiviteLibelle' },
+  { key: 'codeROME', header: 'codeROME' },
+  { key: 'appellationlibelle', header: 'appellationlibelle' },
+  { key: 'competences', header: 'competences' },
+  { key: 'formations', header: 'formations' },
+  { key: 'permis', header: 'permis' },
+  { key: 'langues', header: 'langues' },
+  { key: 'alternance', header: 'alternance' },
+  { key: 'accessibleTH', header: 'accessibleTH' },
+  { key: 'contact_email', header: 'contact_email' },
+  { key: 'contact_tel', header: 'contact_tel' }
+];
+
+// Indices 1-based (compatibles SpreadsheetApp.getRange)
+const FT_COL_INDEX = FT_SHEET_COLUMNS.reduce((acc, c, i) => {
+  acc[c.key] = i + 1;
+  return acc;
+}, {});
+
+function ftCol_(key) {
+  const idx = FT_COL_INDEX[key];
+  if (!idx) throw new Error(`❌ Colonne inconnue: ${key}`);
+  return idx;
+}
+
+function ftHeaders_() {
+  return FT_SHEET_COLUMNS.map(c => c.header);
+}
+
+/***************
  * DEFAULTS (à modifier UNE FOIS)
  ***************/
 const FT_DEFAULTS = {
@@ -341,36 +393,7 @@ function setupFTSheet_(sh) {
   // Colonnes finales (sans origine/url_offre/url_origine)
   // A Status, B Notes, C dateCreation, D intitule (cliquable), etc.
   // NOTE: contact_nom est placé juste après entreprise_nom.
-  const headers = [
-    'Status',                 // A
-    'Notes',                  // B
-    'dateCreation',           // C
-    'intitule',               // D (cliquable)
-    'description',
-    'entreprise_nom',         // F
-    'contact_nom',            // G (déplacé ici)
-    'entreprise_description',
-    'lieu_libelle',
-    'codePostal',
-    'typeContrat',
-    'typeContratLibelle',
-    'natureContrat',
-    'dureeTravailLibelle',
-    'salaire_libelle',
-    'experienceLibelle',
-    'qualificationLibelle',
-    'secteurActiviteLibelle',
-    'codeROME',
-    'appellationlibelle',
-    'competences',
-    'formations',
-    'permis',
-    'langues',
-    'alternance',
-    'accessibleTH',
-    'contact_email',
-    'contact_tel'
-  ];
+  const headers = ftHeaders_();
 
   sh.clear();
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -381,7 +404,7 @@ function setupFTSheet_(sh) {
     .setAllowInvalid(false)
     .build();
 
-  sh.getRange(2, 1, sh.getMaxRows(), 1).setDataValidation(rule);
+  sh.getRange(2, ftCol_('status'), sh.getMaxRows(), 1).setDataValidation(rule);
 }
 
 function getOrCreateSheet_() {
@@ -570,10 +593,10 @@ function ftUpdateTravailleurSocial_24h() {
     .requireValueInList(STATUS_VALUES, true)
     .setAllowInvalid(false)
     .build();
-  sh.getRange(startRow, 1, rows.length, 1).setDataValidation(rule);
+  sh.getRange(startRow, ftCol_('status'), rows.length, 1).setDataValidation(rule);
 
-  // 3) Ajouter les liens sur la colonne D + stocker urlOffre dans la NOTE pour dédoublonner
-  const intituleRange = sh.getRange(startRow, 4, rows.length, 1); // Col D
+  // 3) Ajouter les liens sur la colonne intitule + stocker urlOffre dans la NOTE pour dédoublonner
+  const intituleRange = sh.getRange(startRow, ftCol_('intitule'), rows.length, 1);
   const intitules = intituleRange.getValues().flat();
 
   const richValues = intitules.map((txt, i) => {
@@ -583,9 +606,9 @@ function ftUpdateTravailleurSocial_24h() {
       .build();
   });
 
-  // 4) Ajouter lien Google sur entreprise_nom (col F) si non vide
-  const entrepriseRange = sh.getRange(startRow, 6, rows.length, 1); // Col F
-  const lieuRange = sh.getRange(startRow, 9, rows.length, 1);       // Col I
+  // 4) Ajouter lien Google sur entreprise_nom si non vide
+  const entrepriseRange = sh.getRange(startRow, ftCol_('entreprise_nom'), rows.length, 1);
+  const lieuRange = sh.getRange(startRow, ftCol_('lieu_libelle'), rows.length, 1);
 
   const entreprises = entrepriseRange.getValues().flat();
   const lieux = lieuRange.getValues().flat();
@@ -604,8 +627,8 @@ function ftUpdateTravailleurSocial_24h() {
 
   entrepriseRange.setRichTextValues(entrepriseRichValues.map(v => [v]));
 
-  // 5) Ajouter lien LinkedIn sur contact_nom (col G)
-  const contactNomRange = sh.getRange(startRow, 7, rows.length, 1); // Col G
+  // 5) Ajouter lien LinkedIn sur contact_nom
+  const contactNomRange = sh.getRange(startRow, ftCol_('contact_nom'), rows.length, 1);
   const contactNoms = contactNomRange.getValues().flat();
 
   const contactNomRichValues = contactNoms.map((contactNom, i) => {
