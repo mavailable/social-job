@@ -1,17 +1,35 @@
 type SheetExclusions = { intitule: string[]; entreprise: string[] };
 
-// URLs des offres déjà importées : on les stocke dans les Notes de la colonne `intitule`.
+// URLs des offres déjà importées :
+// - nouveau stockage : colonne technique `url_offre` (masquée)
+// - fallback rétrocompat : anciennes URLs stockées en Notes de la colonne `intitule`
 function ftLoadExistingOfferUrls_(sh: GoogleAppsScript.Spreadsheet.Sheet): Set<string> {
   const lastRow = sh.getLastRow();
   if (lastRow < 2) return new Set();
 
-  const range = sh.getRange(2, ftCol_('intitule'), lastRow - 1, 1);
-  const notes = range.getNotes(); // string[][]
-
   const urls = new Set<string>();
-  for (const row of notes) {
-    const note = (row?.[0] || '').trim();
-    if (note) urls.add(note);
+
+  // 1) Source principale: colonne masquée
+  try {
+    const range = sh.getRange(2, ftCol_('url_offre'), lastRow - 1, 1);
+    const values = range.getValues();
+    for (const row of values) {
+      const v = (row?.[0] || '').toString().trim();
+      if (v) urls.add(v);
+    }
+  } catch (e) {
+    // Si la colonne n'existe pas encore dans d'anciennes feuilles, on ignore et on passe au fallback.
+  }
+
+  // 2) Fallback rétrocompat: anciennes notes sur `intitule`
+  if (urls.size === 0) {
+    const range = sh.getRange(2, ftCol_('intitule'), lastRow - 1, 1);
+    const notes = range.getNotes(); // string[][]
+
+    for (const row of notes) {
+      const note = (row?.[0] || '').trim();
+      if (note) urls.add(note);
+    }
   }
 
   return urls;
@@ -22,11 +40,41 @@ function ftBuildRunSheetName_(): string {
   return ts.replace(/[\\/\?\*\[\]]/g, '-');
 }
 
+function ftApplyLongTextAsNotes_(
+  sh: GoogleAppsScript.Spreadsheet.Sheet,
+  startRow: number,
+  rowsLength: number,
+  colKey: FtColumnKey,
+  fullTexts: string[],
+  prefix: string
+) {
+  const rg = sh.getRange(startRow, ftCol_(colKey), rowsLength, 1);
+  const existing = rg.getNotes();
+
+  const notes = fullTexts.map((t, i) => {
+    const full = String(t || '').trim();
+    const curr = (existing?.[i]?.[0] || '').trim();
+
+    if (!full) return [curr];
+
+    const next = curr
+      ? `${curr}\n\n${prefix}${full}`
+      : `${prefix}${full}`;
+
+    return [next];
+  });
+
+  rg.setNotes(notes);
+}
+
 function setupFTSheet_(sh: GoogleAppsScript.Spreadsheet.Sheet) {
   const headers = ftHeaders_();
   sh.clear();
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   sh.setFrozenRows(1);
+
+  // Masque la colonne technique URL
+  sh.hideColumns(ftCol_('url_offre'));
 
   // Force un style de lignes "fixe" (pas de Fit to data) sur toute la zone data.
   // Sans ça, certaines lignes peuvent rester en auto-ajustement et grossir selon le contenu.
@@ -131,8 +179,8 @@ function ftLoadExclusions_(): SheetExclusions {
   const entreprise: string[] = [];
 
   for (const [a, b] of values) {
-    const ka = normalizeKeyword_(a);
-    const kb = normalizeKeyword_(b);
+    const ka = String(a ?? '').trim();
+    const kb = String(b ?? '').trim();
     if (ka) intitule.push(ka);
     if (kb) entreprise.push(kb);
   }
@@ -171,7 +219,9 @@ function applyRichTexts_(
   sh: GoogleAppsScript.Spreadsheet.Sheet,
   startRow: number,
   rowsLength: number,
-  urlsForRow: string[]
+  urlsForRow: string[],
+  descriptionsForRow?: string[],
+  entrepriseDescriptionsForRow?: string[]
 ) {
   const intituleRange = sh.getRange(startRow, ftCol_('intitule'), rowsLength, 1);
   const intitules = intituleRange.getValues().flat();
@@ -214,7 +264,59 @@ function applyRichTexts_(
   contactNomRange.setRichTextValues(contactNomRichValues.map((v) => [v]));
 
   intituleRange.setRichTextValues(richValues.map((v) => [v]));
-  intituleRange.setNotes(urlsForRow.map((u) => [u]));
+
+  // Stocke les URLs dans la colonne technique (masquée)
+  sh.getRange(startRow, ftCol_('url_offre'), rowsLength, 1).setValues(urlsForRow.map((u) => [u]));
+
+  // Nettoyage rétro-compat : avant on stockait l'URL dans la note de `intitule`.
+  // On efface ces notes pour éviter d'empiler d'autres infos plus tard.
+  intituleRange.setNotes(Array.from({ length: rowsLength }, () => ['']));
+
+  // Ajoute le texte complet (potentiellement multi-lignes) en Notes
+  // pour éviter d'agrandir les lignes.
+  if (descriptionsForRow?.length) {
+    ftApplyLongTextAsNotes_(sh, startRow, rowsLength, 'description', descriptionsForRow, 'Description:\n');
+  }
+
+  if (entrepriseDescriptionsForRow?.length) {
+    ftApplyLongTextAsNotes_(
+      sh,
+      startRow,
+      rowsLength,
+      'entreprise_description',
+      entrepriseDescriptionsForRow,
+      'Entreprise (description):\n'
+    );
+  }
+
+  // Nettoyage / rétro-compat: si on n'a pas reçu les textes complets, on garde l'ancien comportement
+  // (déplacer le contenu de la cellule en note si il contient des retours à la ligne).
+  if (!descriptionsForRow?.length || !entrepriseDescriptionsForRow?.length) {
+    const descValues = sh.getRange(startRow, ftCol_('description'), rowsLength, 1).getValues().flat() as string[];
+    const entDescValues = sh
+      .getRange(startRow, ftCol_('entreprise_description'), rowsLength, 1)
+      .getValues()
+      .flat() as string[];
+
+    const normalizeCellToFirstLine = (colKey: FtColumnKey, values: string[], prefix: string) => {
+      const hasMultiline = values.some((v) => /\r?\n/.test(String(v || '')));
+      if (!hasMultiline) return;
+
+      const rg = sh.getRange(startRow, ftCol_(colKey), rowsLength, 1);
+      const toKeep = values.map((v) => {
+        const s = String(v || '');
+        const first = s.split(/\r?\n/)[0] || '';
+        return [first];
+      });
+
+      const fulls = values.map((v) => String(v || ''));
+      ftApplyLongTextAsNotes_(sh, startRow, rowsLength, colKey, fulls, prefix);
+      rg.setValues(toKeep);
+    };
+
+    normalizeCellToFirstLine('description', descValues, 'Description:\n');
+    normalizeCellToFirstLine('entreprise_description', entDescValues, 'Entreprise (description):\n');
+  }
 
   // Réapplique une hauteur fixe: l'écriture de RichText peut déclencher
   // un auto-fit implicite selon le contenu/format.

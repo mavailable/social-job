@@ -52,5 +52,40 @@ function buildLinkedInPeopleSearchUrl_(contactNom: string, entrepriseNom: string
 }
 
 function normalizeKeyword_(s: unknown): string {
-  return String(s || '').trim().toLowerCase();
+  // Normalisation "exclusions":
+  // - trim
+  // - lowercase
+  // - suppression des accents (diacritiques)
+  // - espaces multiples -> 1 espace
+  return String(s || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Compile une règle d'exclusion.
+ * - Si la règle est de la forme `/.../flags` => RegExp
+ * - Sinon => comparaison "contains" sur le champ normalisé
+ */
+function parseExclusionRule_(raw: unknown): { raw: string; kind: 'regex'; re: RegExp } | { raw: string; kind: 'contains'; needle: string } {
+  const s = String(raw || '').trim();
+  if (!s) return { raw: '', kind: 'contains', needle: '' };
+
+  // Format type: /pattern/gi
+  if (s.startsWith('/') && s.lastIndexOf('/') > 0) {
+    const lastSlash = s.lastIndexOf('/');
+    const pattern = s.slice(1, lastSlash);
+    const flags = s.slice(lastSlash + 1);
+    try {
+      return { raw: s, kind: 'regex', re: new RegExp(pattern, flags) };
+    } catch (e) {
+      // Fallback "contains" si la regex est invalide
+      return { raw: s, kind: 'contains', needle: normalizeKeyword_(s) };
+    }
+  }
+
+  return { raw: s, kind: 'contains', needle: normalizeKeyword_(s) };
 }

@@ -1,19 +1,30 @@
 type Exclusions = { intitule: string[]; entreprise: string[] };
 
 function ftIsExcludedOffer_(intitule: unknown, entrepriseNom: unknown, exclusions: Exclusions): boolean {
-  const title = normalizeKeyword_(intitule);
-  const ent = normalizeKeyword_(entrepriseNom);
+  const titleNorm = normalizeKeyword_(intitule);
+  const entNorm = normalizeKeyword_(entrepriseNom);
   const ex = exclusions || { intitule: [], entreprise: [] };
 
-  if (title && ex.intitule?.length) {
+  const matches = (haystackNorm: string, haystackRaw: unknown, rawRule: string): boolean => {
+    const rule = parseExclusionRule_(rawRule);
+    if (rule.kind === 'regex') {
+      // Pour les regex, on teste sur le texte original (non normalisé) pour garder
+      // le contrôle total (ex: \b, classes, etc.).
+      return rule.re.test(String(haystackRaw || ''));
+    }
+    if (!rule.needle) return false;
+    return haystackNorm.includes(rule.needle);
+  };
+
+  if (titleNorm && ex.intitule?.length) {
     for (const kw of ex.intitule) {
-      if (kw && title.includes(kw)) return true;
+      if (kw && matches(titleNorm, intitule, kw)) return true;
     }
   }
 
-  if (ent && ex.entreprise?.length) {
+  if (entNorm && ex.entreprise?.length) {
     for (const kw of ex.entreprise) {
-      if (kw && ent.includes(kw)) return true;
+      if (kw && matches(entNorm, entrepriseNom, kw)) return true;
     }
   }
 

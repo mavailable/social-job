@@ -14,6 +14,8 @@ function ftUpdateTravailleurSocial_24h() {
 
   const rows: any[][] = [];
   const urlsForRow: string[] = [];
+  const descriptionsForRow: string[] = [];
+  const entrepriseDescriptionsForRow: string[] = [];
 
   for (const o of resultats) {
     const id = o?.id ? String(o.id) : '';
@@ -30,15 +32,20 @@ function ftUpdateTravailleurSocial_24h() {
       continue;
     }
 
+    const descFull = String(o?.description || '');
+    const descFirstLine = descFull.split(/\r?\n/)[0] || '';
+
+    const entDescFull = String(o?.entreprise?.description || '');
+    const entDescFirstLine = entDescFull.split(/\r?\n/)[0] || '';
+
     rows.push([
       'Nouveau',
       '',
       formatFTDate_(o?.dateCreation),
       o?.intitule || '',
-      o?.description || '',
+      descFirstLine,
       entrepriseNom,
       contactNom,
-      o?.entreprise?.description || '',
       ftFormatLieuLibelle_(o?.lieuTravail?.libelle || ''),
       o?.lieuTravail?.codePostal || '',
       o?.typeContrat || '',
@@ -59,10 +66,15 @@ function ftUpdateTravailleurSocial_24h() {
       normalizeBool_(o?.alternance),
       normalizeBool_(o?.accessibleTH),
       o?.contact?.courriel || o?.contact?.email || '',
-      o?.contact?.telephone || ''
+      o?.contact?.telephone || '',
+      entDescFirstLine,
+      // Colonne technique (masquée)
+      urlOffre
     ]);
 
     urlsForRow.push(urlOffre);
+    descriptionsForRow.push(descFull);
+    entrepriseDescriptionsForRow.push(entDescFull);
   }
 
   if (!rows.length) {
@@ -71,7 +83,18 @@ function ftUpdateTravailleurSocial_24h() {
   }
 
   const startRow = appendRows_(sh, rows);
-  applyRichTexts_(sh, startRow, rows.length, urlsForRow);
+  applyRichTexts_(sh, startRow, rows.length, urlsForRow, descriptionsForRow, entrepriseDescriptionsForRow);
+
+  // Resize colonnes (à la fin de l'import)
+  // A 100, B 200, C 75, D 300, E 200, F 150, G 150, H 100, I 75, J 50, K 75
+  // puis 100 pour toutes les suivantes.
+  const fixedWidths = [100, 200, 75, 300, 200, 150, 150, 100, 75, 50, 75];
+  fixedWidths.forEach((w, i) => sh.setColumnWidth(i + 1, w));
+
+  const lastCol = sh.getLastColumn();
+  if (lastCol > fixedWidths.length) {
+    sh.setColumnWidths(fixedWidths.length + 1, lastCol - fixedWidths.length, 100);
+  }
 
   // Verrouille la hauteur des lignes une dernière fois sur toute la zone data.
   // (Sheets peut recalculer un auto-fit pendant l'écriture; on force l'état final.)
