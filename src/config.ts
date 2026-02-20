@@ -76,5 +76,51 @@ const STATUS_VALUES = [
   'Clôturé'
 ] as const;
 
+type FtStatus = (typeof STATUS_VALUES)[number];
+
+type FtStatusStyle = {
+  /** Background color (hex) */
+  bg: string;
+  /** Font color (hex) */
+  fg: string;
+  /** Optional richer label displayed in cells (e.g. with dot) */
+  label?: string;
+};
+
+// Palette "premium" (lisible + contrastée).
+const FT_STATUS_STYLES: Record<FtStatus, FtStatusStyle> = {
+  'Nouveau': { label: '● Nouveau', bg: '#E3F2FD', fg: '#0D47A1' },
+  'À contacter': { label: '● À contacter', bg: '#FFF8E1', fg: '#E65100' },
+  'Contacté': { label: '● Contacté', bg: '#E8F5E9', fg: '#1B5E20' },
+  'Relance 1': { label: '● Relance 1', bg: '#F3E5F5', fg: '#4A148C' },
+  'Relance 2': { label: '● Relance 2', bg: '#EDE7F6', fg: '#311B92' },
+  'Entretien': { label: '● Entretien', bg: '#E0F7FA', fg: '#006064' },
+  'Refus': { label: '● Refus', bg: '#FFEBEE', fg: '#B71C1C' },
+  'OK / Piste chaude': { label: '● OK / Piste chaude', bg: '#E8F5E9', fg: '#2E7D32' },
+  'Clôturé': { label: '● Clôturé', bg: '#ECEFF1', fg: '#263238' }
+};
+
+function ftIsStatus_(v: unknown): v is FtStatus {
+  return (STATUS_VALUES as readonly string[]).includes(String(v));
+}
+
+function ftStatusLabel_(status: FtStatus): string {
+  return FT_STATUS_STYLES[status]?.label || status;
+}
+
+function ftStatusStyle_(status: FtStatus): FtStatusStyle {
+  return FT_STATUS_STYLES[status] || { bg: '#FFFFFF', fg: '#000000' };
+}
+
 const FT_PAGE_SIZE = 150;
 const FT_MAX_PAGES = 20;
+
+/**
+ * Ex: "25 - Sochaux" -> "Sochaux"
+ */
+function ftFormatLieuLibelle_(v: unknown): string {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  // Supprime un éventuel préfixe "<chiffres> - "
+  return s.replace(/^\d+\s*-\s*/, '').trim();
+}

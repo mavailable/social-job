@@ -21,7 +21,13 @@ function formatFTDate_(isoString: unknown): string {
 function buildGoogleSearchUrl_(entrepriseNom: string, lieuLibelle: string): string {
   if (!entrepriseNom || !lieuLibelle) return '';
 
-  const lieu = lieuLibelle.length > 4 ? lieuLibelle.substring(4) : lieuLibelle;
+  // Ancien comportement: substring(4) (ex: "25 - Sochaux" -> "Sochaux")
+  // cassait les lieux déjà propres (ex: "Sochaux" -> "aux").
+  const lieu = String(lieuLibelle)
+    .trim()
+    .replace(/^\d+\s*-\s*/, '')
+    .trim();
+
   const query = `${entrepriseNom} ${lieu}`.trim();
   return 'https://www.google.com/search?q=' + encodeURIComponent(query);
 }

@@ -53,9 +53,13 @@ function sortOffers_(offers: any[]): any[] {
     const aContact = normalizeContactNom_((a?.contact?.nom || '').trim(), aEnt);
     const bContact = normalizeContactNom_((b?.contact?.nom || '').trim(), bEnt);
 
-    const score = (contact: string, ent: string) => (contact ? 2 : 0) + (ent ? 1 : 0);
-    const sa = score(aContact, aEnt);
-    const sb = score(bContact, bEnt);
+    const isTempsPartiel = (o: any) => /\btemps\s+partiel\b/i.test(String(o?.dureeTravailLibelle || ''));
+
+    const score = (o: any, contact: string, ent: string) =>
+      (contact ? 2 : 0) + (ent ? 1 : 0) + (isTempsPartiel(o) ? 0.5 : 0);
+
+    const sa = score(a, aContact, aEnt);
+    const sb = score(b, bContact, bEnt);
     if (sb !== sa) return sb - sa;
 
     const da = a?.dateCreation ? new Date(a.dateCreation).getTime() : 0;

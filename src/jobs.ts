@@ -1,6 +1,6 @@
 function ftUpdateTravailleurSocial_24h() {
   const sh = createRunSheet_();
-  const existingUrls = new Set<string>();
+  const existingUrls = ftLoadExistingOfferUrls_(sh);
 
   const exclusions = ftLoadExclusions_();
 
@@ -39,7 +39,7 @@ function ftUpdateTravailleurSocial_24h() {
       entrepriseNom,
       contactNom,
       o?.entreprise?.description || '',
-      o?.lieuTravail?.libelle || '',
+      ftFormatLieuLibelle_(o?.lieuTravail?.libelle || ''),
       o?.lieuTravail?.codePostal || '',
       o?.typeContrat || '',
       o?.typeContratLibelle || '',
@@ -48,7 +48,8 @@ function ftUpdateTravailleurSocial_24h() {
       o?.salaire?.libelle || '',
       o?.experienceLibelle || '',
       o?.qualificationLibelle || '',
-      o?.secteurActiviteLibele || '',
+      // France Travail: champ attendu = secteurActiviteLibelle (typo fréquente dans le code)
+      o?.secteurActiviteLibelle || o?.secteurActiviteLibele || o?.secteurActivite || '',
       o?.romeCode || o?.codeRome || '',
       o?.appellationlibelle || '',
       safeJoin_(o?.competences, 'libelle'),
@@ -71,6 +72,12 @@ function ftUpdateTravailleurSocial_24h() {
 
   const startRow = appendRows_(sh, rows);
   applyRichTexts_(sh, startRow, rows.length, urlsForRow);
+
+  // Verrouille la hauteur des lignes une dernière fois sur toute la zone data.
+  // (Sheets peut recalculer un auto-fit pendant l'écriture; on force l'état final.)
+  SpreadsheetApp.flush();
+  const lastRow = sh.getLastRow();
+  if (lastRow >= 2) sh.setRowHeights(2, lastRow - 1, 21);
 
   Logger.log(`✅ ${rows.length} offres ajoutées`);
 }
