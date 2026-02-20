@@ -8,7 +8,7 @@ const FT_SHEET_COLUMNS = [
   { key: 'contact_nom', header: 'Contact' },
   { key: 'codePostal', header: 'CP' },
   { key: 'typeContratLibelle', header: 'Contrat' },
-  { key: 'dureeTravailLibelle', header: 'Temps de travail' },
+  { key: 'dureeTravailLibelle', header: '% ETP' },
   { key: 'contact_email', header: 'Email' },
   { key: 'contact_tel', header: 'Téléphone' },
   { key: 'entreprise_description', header: 'À propos de l’entreprise' },

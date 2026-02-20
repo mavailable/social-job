@@ -38,6 +38,8 @@ function ftUpdateTravailleurSocial_24h() {
     const entDescFull = String(o?.entreprise?.description || '');
     const entDescFirstLine = entDescFull.split(/\r?\n/)[0] || '';
 
+    const etp = extractEtpFromWeeklyHoursText_(o?.dureeTravailLibelle);
+
     rows.push([
       'Nouveau',
       '',
@@ -46,25 +48,9 @@ function ftUpdateTravailleurSocial_24h() {
       descFirstLine,
       entrepriseNom,
       contactNom,
-      ftFormatLieuLibelle_(o?.lieuTravail?.libelle || ''),
       o?.lieuTravail?.codePostal || '',
-      o?.typeContrat || '',
       o?.typeContratLibelle || '',
-      o?.natureContrat || '',
-      o?.dureeTravailLibelle || '',
-      o?.salaire?.libelle || '',
-      o?.experienceLibelle || '',
-      o?.qualificationLibelle || '',
-      // France Travail: champ attendu = secteurActiviteLibelle (typo fréquente dans le code)
-      o?.secteurActiviteLibelle || o?.secteurActiviteLibele || o?.secteurActivite || '',
-      o?.romeCode || o?.codeRome || '',
-      o?.appellationlibelle || '',
-      safeJoin_(o?.competences, 'libelle'),
-      safeJoin_(o?.formations, 'libelle'),
-      safeJoin_(o?.permis, 'libelle'),
-      safeJoin_(o?.langues, 'libelle'),
-      normalizeBool_(o?.alternance),
-      normalizeBool_(o?.accessibleTH),
+      etp == null ? '' : etp,
       o?.contact?.courriel || o?.contact?.email || '',
       o?.contact?.telephone || '',
       entDescFirstLine,

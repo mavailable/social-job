@@ -76,6 +76,10 @@ function setupFTSheet_(sh: GoogleAppsScript.Spreadsheet.Sheet) {
   // Masque la colonne technique URL
   sh.hideColumns(ftCol_('url_offre'));
 
+  // Affiche le %ETP sous forme de pourcentage (ex: 0.84 -> 84%).
+  // Valeurs attendues en décimal (0..n).
+  sh.getRange(2, ftCol_('dureeTravailLibelle'), sh.getMaxRows() - 1, 1).setNumberFormat('0.00%');
+
   // Force un style de lignes "fixe" (pas de Fit to data) sur toute la zone data.
   // Sans ça, certaines lignes peuvent rester en auto-ajustement et grossir selon le contenu.
   const dataRows = sh.getMaxRows() - 1;
@@ -234,7 +238,7 @@ function applyRichTexts_(
   });
 
   const entrepriseRange = sh.getRange(startRow, ftCol_('entreprise_nom'), rowsLength, 1);
-  const lieuRange = sh.getRange(startRow, ftCol_('lieu_libelle'), rowsLength, 1);
+  const lieuRange = sh.getRange(startRow, ftCol_('codePostal'), rowsLength, 1);
   const entreprises = entrepriseRange.getValues().flat() as string[];
   const lieux = lieuRange.getValues().flat() as string[];
 

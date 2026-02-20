@@ -6,6 +6,36 @@ function safeJoin_(arr: unknown, key?: string): string {
     .join(' | ');
 }
 
+/**
+ * Extrait une durée hebdomadaire (ex: "29H15/semaine", "35H/semaine") et calcule un %ETP sur base 35h.
+ *
+ * Règles:
+ * - regex: \b(\d{1,2})\s*[Hh]\s*(?:([0-5]\d))?\s*\/\s*semaine\b
+ * - total_heures = h + (min/60)
+ * - etp = total_heures / 35, arrondi à 2 décimales
+ * - si non trouvé => null
+ */
+function extractEtpFromWeeklyHoursText_(text: unknown): number | null {
+  const s = String(text ?? '');
+  if (!s) return null;
+
+  const re = /\b(\d{1,2})\s*[Hh]\s*(?:([0-5]\d))?\s*\/\s*semaine\b/;
+  const m = s.match(re);
+  if (!m) return null;
+
+  const hours = Number(m[1]);
+  if (!Number.isFinite(hours)) return null;
+
+  const minutes = m[2] != null && m[2] !== '' ? Number(m[2]) : null;
+  const totalHours = minutes != null && Number.isFinite(minutes)
+    ? hours + minutes / 60
+    : hours;
+
+  const etp = totalHours / 35;
+  // arrondi à 2 décimales
+  return Math.round(etp * 100) / 100;
+}
+
 function normalizeBool_(v: unknown): string {
   if (v === true) return 'TRUE';
   if (v === false) return 'FALSE';
